@@ -207,11 +207,9 @@ struct ishtp_device {
 	struct work_struct bh_hbm_work;
 
 	/* IPC write queue */
-	struct wr_msg_ctl_info wr_processing_list_head, wr_free_list_head;
+	struct list_head wr_processing_list, wr_free_list;
 	/* For both processing list  and free list */
 	spinlock_t wr_processing_spinlock;
-
-	spinlock_t out_ipc_spinlock;
 
 	struct ishtp_fw_client *fw_clients; /*Note:memory has to be allocated*/
 	DECLARE_BITMAP(fw_clients_map, ISHTP_CLIENTS_MAX);
@@ -238,7 +236,8 @@ struct ishtp_device {
 	uint64_t ishtp_host_dma_rx_buf_phys;
 
 	/* Dump to trace buffers if enabled*/
-	void (*print_log)(struct ishtp_device *dev, char *format, ...);
+	__printf(2, 3) void (*print_log)(struct ishtp_device *dev,
+					 const char *format, ...);
 
 	/* Debug stats */
 	unsigned int	ipc_rx_cnt;

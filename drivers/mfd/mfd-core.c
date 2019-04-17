@@ -158,7 +158,7 @@ static int mfd_add_device(struct device *parent, int id,
 	if (!pdev)
 		goto fail_alloc;
 
-	res = kzalloc(sizeof(*res) * cell->num_resources, GFP_KERNEL);
+	res = kcalloc(cell->num_resources, sizeof(*res), GFP_KERNEL);
 	if (!res)
 		goto fail_device;
 
@@ -398,6 +398,8 @@ int mfd_clone_cell(const char *cell, const char **clones, size_t n_clones)
 			dev_err(dev, "failed to create platform device '%s'\n",
 					clones[i]);
 	}
+
+	put_device(dev);
 
 	return 0;
 }

@@ -34,10 +34,8 @@
 #ifndef VCHI_COMMON_H_
 #define VCHI_COMMON_H_
 
-
 //flags used when sending messages (must be bitmapped)
-typedef enum
-{
+typedef enum {
    VCHI_FLAGS_NONE                      = 0x0,
    VCHI_FLAGS_BLOCK_UNTIL_OP_COMPLETE   = 0x1,   // waits for message to be received, or sent (NB. not the same as being seen on other side)
    VCHI_FLAGS_CALLBACK_WHEN_OP_COMPLETE = 0x2,   // run a callback when message sent
@@ -62,8 +60,7 @@ typedef enum {
 } VCHI_CRC_CONTROL_T;
 
 //callback reasons when an event occurs on a service
-typedef enum
-{
+typedef enum {
    VCHI_CALLBACK_REASON_MIN,
 
    //This indicates that there is data available
@@ -100,19 +97,16 @@ typedef enum
    VCHI_CALLBACK_PEER_RESUMED,
    VCHI_CALLBACK_FORCED_POWER_OFF,
 
-#ifdef USE_VCHIQ_ARM
    // some extra notifications provided by vchiq_arm
    VCHI_CALLBACK_SERVICE_OPENED,
    VCHI_CALLBACK_BULK_RECEIVE_ABORTED,
    VCHI_CALLBACK_BULK_TRANSMIT_ABORTED,
-#endif
 
    VCHI_CALLBACK_REASON_MAX
 } VCHI_CALLBACK_REASON_T;
 
 // service control options
-typedef enum
-{
+typedef enum {
    VCHI_SERVICE_OPTION_MIN,
 
    VCHI_SERVICE_OPTION_TRACE,
@@ -121,13 +115,10 @@ typedef enum
    VCHI_SERVICE_OPTION_MAX
 } VCHI_SERVICE_OPTION_T;
 
-
 //Callback used by all services / bulk transfers
-typedef void (*VCHI_CALLBACK_T)( void *callback_param, //my service local param
-                                 VCHI_CALLBACK_REASON_T reason,
-                                 void *handle ); //for transmitting msg's only
-
-
+typedef void (*VCHI_CALLBACK_T)(void *callback_param, //my service local param
+				 VCHI_CALLBACK_REASON_T reason,
+				 void *handle); //for transmitting msg's only
 
 /*
  * Define vector struct for scatter-gather (vector) operations
@@ -136,9 +127,9 @@ typedef void (*VCHI_CALLBACK_T)( void *callback_param, //my service local param
  * '-vec_len' elements. Thus to append a header onto an existing vector,
  * you can do this:
  *
- * void foo(const VCHI_MSG_VECTOR_T *v, int n)
+ * void foo(const struct vchi_msg_vector *v, int n)
  * {
- *    VCHI_MSG_VECTOR_T nv[2];
+ *    struct vchi_msg_vector nv[2];
  *    nv[0].vec_base = my_header;
  *    nv[0].vec_len = sizeof my_header;
  *    nv[1].vec_base = v;
@@ -146,10 +137,10 @@ typedef void (*VCHI_CALLBACK_T)( void *callback_param, //my service local param
  *    ...
  *
  */
-typedef struct vchi_msg_vector {
+struct vchi_msg_vector {
    const void *vec_base;
    int32_t vec_len;
-} VCHI_MSG_VECTOR_T;
+};
 
 // Opaque type for a connection API
 typedef struct opaque_vchi_connection_api_t VCHI_CONNECTION_API_T;
@@ -157,19 +148,17 @@ typedef struct opaque_vchi_connection_api_t VCHI_CONNECTION_API_T;
 // Opaque type for a message driver
 typedef struct opaque_vchi_message_driver_t VCHI_MESSAGE_DRIVER_T;
 
-
 // Iterator structure for reading ahead through received message queue. Allocated by client,
 // initialised by vchi_msg_look_ahead. Fields are for internal VCHI use only.
 // Iterates over messages in queue at the instant of the call to vchi_msg_lookahead -
 // will not proceed to messages received since. Behaviour is undefined if an iterator
 // is used again after messages for that service are removed/dequeued by any
 // means other than vchi_msg_iter_... calls on the iterator itself.
-typedef struct {
+struct vchi_msg_iter {
    struct opaque_vchi_service_t *service;
    void *last;
    void *next;
    void *remove;
-} VCHI_MSG_ITER_T;
-
+};
 
 #endif // VCHI_COMMON_H_

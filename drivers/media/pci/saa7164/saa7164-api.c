@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/wait.h>
@@ -753,7 +749,7 @@ int saa7164_api_initialize_dif(struct saa7164_port *port)
 	if (port->type == SAA7164_MPEG_ENCODER) {
 		/* Pick any analog standard to init the diff.
 		 * we'll come back during encoder_init'
-		 * and set the correct standard if requried.
+		 * and set the correct standard if required.
 		 */
 		std = V4L2_STD_NTSC;
 	} else

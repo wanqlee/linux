@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <linux/fb.h>
 
@@ -85,6 +86,7 @@ static struct resource smc91x_resources[] = {
 static struct smc91x_platdata smc91x_platdata = {
 	.flags = SMC91X_USE_8BIT | SMC91X_USE_16BIT | SMC91X_USE_32BIT |
 		 SMC91X_USE_DMA | SMC91X_NOWAIT,
+	.pxa_u16_align4 = true,
 };
 
 static struct platform_device smc91x_device = {
@@ -158,9 +160,6 @@ static struct pxafb_mach_info sharp_lm8v31 = {
 
 static struct pxamci_platform_data idp_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect	= -1,
-	.gpio_card_ro		= -1,
-	.gpio_power		= -1,
 };
 
 static void __init idp_init(void)

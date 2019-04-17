@@ -280,12 +280,12 @@ static int max77620_config_fps(struct max77620_chip *chip,
 
 	for (fps_id = 0; fps_id < MAX77620_FPS_COUNT; fps_id++) {
 		sprintf(fps_name, "fps%d", fps_id);
-		if (!strcmp(fps_np->name, fps_name))
+		if (of_node_name_eq(fps_np, fps_name))
 			break;
 	}
 
 	if (fps_id == MAX77620_FPS_COUNT) {
-		dev_err(dev, "FPS node name %s is not valid\n", fps_np->name);
+		dev_err(dev, "FPS node name %pOFn is not valid\n", fps_np);
 		return -EINVAL;
 	}
 
@@ -461,7 +461,7 @@ static int max77620_probe(struct i2c_client *client,
 	chip->rmap = devm_regmap_init_i2c(client, rmap_config);
 	if (IS_ERR(chip->rmap)) {
 		ret = PTR_ERR(chip->rmap);
-		dev_err(chip->dev, "Failed to intialise regmap: %d\n", ret);
+		dev_err(chip->dev, "Failed to initialise regmap: %d\n", ret);
 		return ret;
 	}
 

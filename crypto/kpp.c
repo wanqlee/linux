@@ -19,6 +19,7 @@
 #include <linux/crypto.h>
 #include <crypto/algapi.h>
 #include <linux/cryptouser.h>
+#include <linux/compiler.h>
 #include <net/netlink.h>
 #include <crypto/kpp.h>
 #include <crypto/internal/kpp.h>
@@ -29,15 +30,11 @@ static int crypto_kpp_report(struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_kpp rkpp;
 
-	strncpy(rkpp.type, "kpp", sizeof(rkpp.type));
+	memset(&rkpp, 0, sizeof(rkpp));
 
-	if (nla_put(skb, CRYPTOCFGA_REPORT_KPP,
-		    sizeof(struct crypto_report_kpp), &rkpp))
-		goto nla_put_failure;
-	return 0;
+	strscpy(rkpp.type, "kpp", sizeof(rkpp.type));
 
-nla_put_failure:
-	return -EMSGSIZE;
+	return nla_put(skb, CRYPTOCFGA_REPORT_KPP, sizeof(rkpp), &rkpp);
 }
 #else
 static int crypto_kpp_report(struct sk_buff *skb, struct crypto_alg *alg)
@@ -47,7 +44,7 @@ static int crypto_kpp_report(struct sk_buff *skb, struct crypto_alg *alg)
 #endif
 
 static void crypto_kpp_show(struct seq_file *m, struct crypto_alg *alg)
-	__attribute__ ((unused));
+	__maybe_unused;
 
 static void crypto_kpp_show(struct seq_file *m, struct crypto_alg *alg)
 {

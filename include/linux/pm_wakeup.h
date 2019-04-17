@@ -88,10 +88,14 @@ static inline bool device_may_wakeup(struct device *dev)
 	return dev->power.can_wakeup && !!dev->power.wakeup;
 }
 
+static inline void device_set_wakeup_path(struct device *dev)
+{
+	dev->power.wakeup_path = true;
+}
+
 /* drivers/base/power/wakeup.c */
 extern void wakeup_source_prepare(struct wakeup_source *ws, const char *name);
 extern struct wakeup_source *wakeup_source_create(const char *name);
-extern void wakeup_source_drop(struct wakeup_source *ws);
 extern void wakeup_source_destroy(struct wakeup_source *ws);
 extern void wakeup_source_add(struct wakeup_source *ws);
 extern void wakeup_source_remove(struct wakeup_source *ws);
@@ -106,8 +110,8 @@ extern void __pm_stay_awake(struct wakeup_source *ws);
 extern void pm_stay_awake(struct device *dev);
 extern void __pm_relax(struct wakeup_source *ws);
 extern void pm_relax(struct device *dev);
-extern void __pm_wakeup_event(struct wakeup_source *ws, unsigned int msec);
-extern void pm_wakeup_event(struct device *dev, unsigned int msec);
+extern void pm_wakeup_ws_event(struct wakeup_source *ws, unsigned int msec, bool hard);
+extern void pm_wakeup_dev_event(struct device *dev, unsigned int msec, bool hard);
 
 #else /* !CONFIG_PM_SLEEP */
 
@@ -128,8 +132,6 @@ static inline struct wakeup_source *wakeup_source_create(const char *name)
 {
 	return NULL;
 }
-
-static inline void wakeup_source_drop(struct wakeup_source *ws) {}
 
 static inline void wakeup_source_destroy(struct wakeup_source *ws) {}
 
@@ -174,6 +176,8 @@ static inline bool device_may_wakeup(struct device *dev)
 	return dev->power.can_wakeup && dev->power.should_wakeup;
 }
 
+static inline void device_set_wakeup_path(struct device *dev) {}
+
 static inline void __pm_stay_awake(struct wakeup_source *ws) {}
 
 static inline void pm_stay_awake(struct device *dev) {}
@@ -182,9 +186,11 @@ static inline void __pm_relax(struct wakeup_source *ws) {}
 
 static inline void pm_relax(struct device *dev) {}
 
-static inline void __pm_wakeup_event(struct wakeup_source *ws, unsigned int msec) {}
+static inline void pm_wakeup_ws_event(struct wakeup_source *ws,
+				      unsigned int msec, bool hard) {}
 
-static inline void pm_wakeup_event(struct device *dev, unsigned int msec) {}
+static inline void pm_wakeup_dev_event(struct device *dev, unsigned int msec,
+				       bool hard) {}
 
 #endif /* !CONFIG_PM_SLEEP */
 
@@ -195,10 +201,19 @@ static inline void wakeup_source_init(struct wakeup_source *ws,
 	wakeup_source_add(ws);
 }
 
-static inline void wakeup_source_trash(struct wakeup_source *ws)
+static inline void __pm_wakeup_event(struct wakeup_source *ws, unsigned int msec)
 {
-	wakeup_source_remove(ws);
-	wakeup_source_drop(ws);
+	return pm_wakeup_ws_event(ws, msec, false);
+}
+
+static inline void pm_wakeup_event(struct device *dev, unsigned int msec)
+{
+	return pm_wakeup_dev_event(dev, msec, false);
+}
+
+static inline void pm_wakeup_hard_event(struct device *dev)
+{
+	return pm_wakeup_dev_event(dev, 0, true);
 }
 
 #endif /* _LINUX_PM_WAKEUP_H */

@@ -23,7 +23,6 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <linux/kthread.h>
 #include <linux/firmware.h>
 #include <linux/io.h>
 #include <asm/div64.h>
@@ -279,7 +278,6 @@ static int sst_byt_process_notification(struct sst_byt *byt,
 	struct sst_byt_stream *stream;
 	u64 header;
 	u8 msg_id, stream_id;
-	int handled = 1;
 
 	header = sst_dsp_shim_read64_unlocked(sst, SST_IPCD);
 	msg_id = sst_byt_header_msg_id(header);
@@ -299,7 +297,7 @@ static int sst_byt_process_notification(struct sst_byt *byt,
 		break;
 	}
 
-	return handled;
+	return 1;
 }
 
 static irqreturn_t sst_byt_irq_thread(int irq, void *context)
@@ -338,7 +336,7 @@ static irqreturn_t sst_byt_irq_thread(int irq, void *context)
 	spin_unlock_irqrestore(&sst->spinlock, flags);
 
 	/* continue to send any remaining messages... */
-	kthread_queue_work(&ipc->kworker, &ipc->kwork);
+	schedule_work(&ipc->kwork);
 
 	return IRQ_HANDLED;
 }

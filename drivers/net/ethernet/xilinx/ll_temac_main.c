@@ -37,6 +37,7 @@
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
+#include <linux/of_net.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/skbuff.h>
@@ -242,15 +243,15 @@ static int temac_dma_bd_init(struct net_device *ndev)
 
 	/* allocate the tx and rx ring buffer descriptors. */
 	/* returns a virtual address and a physical address. */
-	lp->tx_bd_v = dma_zalloc_coherent(ndev->dev.parent,
-					  sizeof(*lp->tx_bd_v) * TX_BD_NUM,
-					  &lp->tx_bd_p, GFP_KERNEL);
+	lp->tx_bd_v = dma_alloc_coherent(ndev->dev.parent,
+					 sizeof(*lp->tx_bd_v) * TX_BD_NUM,
+					 &lp->tx_bd_p, GFP_KERNEL);
 	if (!lp->tx_bd_v)
 		goto out;
 
-	lp->rx_bd_v = dma_zalloc_coherent(ndev->dev.parent,
-					  sizeof(*lp->rx_bd_v) * RX_BD_NUM,
-					  &lp->rx_bd_p, GFP_KERNEL);
+	lp->rx_bd_v = dma_alloc_coherent(ndev->dev.parent,
+					 sizeof(*lp->rx_bd_v) * RX_BD_NUM,
+					 &lp->rx_bd_p, GFP_KERNEL);
 	if (!lp->rx_bd_v)
 		goto out;
 
@@ -332,7 +333,7 @@ static void temac_do_set_mac_address(struct net_device *ndev)
 	mutex_unlock(&lp->indirect_mutex);
 }
 
-static int temac_init_mac_address(struct net_device *ndev, void *address)
+static int temac_init_mac_address(struct net_device *ndev, const void *address)
 {
 	memcpy(ndev->dev_addr, address, ETH_ALEN);
 	if (!is_valid_ether_addr(ndev->dev_addr))
@@ -629,7 +630,7 @@ static void temac_start_xmit_done(struct net_device *ndev)
 		dma_unmap_single(ndev->dev.parent, cur_p->phys, cur_p->len,
 				 DMA_TO_DEVICE);
 		if (cur_p->app4)
-			dev_kfree_skb_irq((struct sk_buff *)cur_p->app4);
+			dev_consume_skb_irq((struct sk_buff *)cur_p->app4);
 		cur_p->app0 = 0;
 		cur_p->app1 = 0;
 		cur_p->app2 = 0;
@@ -673,7 +674,8 @@ static inline int temac_check_tx_bd_space(struct temac_local *lp, int num_frag)
 	return 0;
 }
 
-static int temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t
+temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct temac_local *lp = netdev_priv(ndev);
 	struct cdmac_bd *cur_p;
@@ -967,13 +969,8 @@ static const struct attribute_group temac_attr_group = {
 };
 
 /* ethtool support */
-static int temac_nway_reset(struct net_device *ndev)
-{
-	return phy_start_aneg(ndev->phydev);
-}
-
 static const struct ethtool_ops temac_ethtool_ops = {
-	.nway_reset = temac_nway_reset,
+	.nway_reset = phy_ethtool_nway_reset,
 	.get_link = ethtool_op_get_link,
 	.get_ts_info = ethtool_op_get_ts_info,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
@@ -987,7 +984,7 @@ static int temac_of_probe(struct platform_device *op)
 	struct net_device *ndev;
 	const void *addr;
 	__be32 *p;
-	int size, rc = 0;
+	int rc = 0;
 
 	/* Init network device structure */
 	ndev = alloc_etherdev(sizeof(*lp));
@@ -1079,13 +1076,13 @@ static int temac_of_probe(struct platform_device *op)
 
 
 	/* Retrieve the MAC address */
-	addr = of_get_property(op->dev.of_node, "local-mac-address", &size);
-	if ((!addr) || (size != 6)) {
+	addr = of_get_mac_address(op->dev.of_node);
+	if (!addr) {
 		dev_err(&op->dev, "could not find MAC address\n");
 		rc = -ENODEV;
 		goto err_iounmap_2;
 	}
-	temac_init_mac_address(ndev, (void *)addr);
+	temac_init_mac_address(ndev, addr);
 
 	rc = temac_mdio_setup(lp, op->dev.of_node);
 	if (rc)
@@ -1093,7 +1090,7 @@ static int temac_of_probe(struct platform_device *op)
 
 	lp->phy_node = of_parse_phandle(op->dev.of_node, "phy-handle", 0);
 	if (lp->phy_node)
-		dev_dbg(lp->dev, "using PHY node %s (%p)\n", np->full_name, np);
+		dev_dbg(lp->dev, "using PHY node %pOF (%p)\n", np, np);
 
 	/* Add the device attributes */
 	rc = sysfs_create_group(&lp->dev->kobj, &temac_attr_group);

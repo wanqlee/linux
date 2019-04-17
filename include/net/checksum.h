@@ -22,7 +22,7 @@
 #include <linux/errno.h>
 #include <asm/types.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/checksum.h>
 
 #ifndef _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
@@ -30,7 +30,7 @@ static inline
 __wsum csum_and_copy_from_user (const void __user *src, void *dst,
 				      int len, __wsum sum, int *err_ptr)
 {
-	if (access_ok(VERIFY_READ, src, len))
+	if (access_ok(src, len))
 		return csum_partial_copy_from_user(src, dst, len, sum, err_ptr);
 
 	if (len)
@@ -46,7 +46,7 @@ static __inline__ __wsum csum_and_copy_to_user
 {
 	sum = csum_partial(src, len, sum);
 
-	if (access_ok(VERIFY_WRITE, dst, len)) {
+	if (access_ok(dst, len)) {
 		if (copy_to_user(dst, src, len) == 0)
 			return sum;
 	}
@@ -179,7 +179,7 @@ static inline __wsum remcsum_adjust(void *ptr, __wsum csum,
 
 static inline void remcsum_unadjust(__sum16 *psum, __wsum delta)
 {
-	*psum = csum_fold(csum_sub(delta, *psum));
+	*psum = csum_fold(csum_sub(delta, (__force __wsum)*psum));
 }
 
 #endif

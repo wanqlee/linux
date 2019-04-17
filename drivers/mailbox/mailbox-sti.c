@@ -403,6 +403,7 @@ static const struct of_device_id sti_mailbox_match[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, sti_mailbox_match);
 
 static int sti_mbox_probe(struct platform_device *pdev)
 {
@@ -441,8 +442,8 @@ static int sti_mbox_probe(struct platform_device *pdev)
 	if (!mbox)
 		return -ENOMEM;
 
-	chans = devm_kzalloc(&pdev->dev,
-			     sizeof(*chans) * STI_MBOX_CHAN_MAX, GFP_KERNEL);
+	chans = devm_kcalloc(&pdev->dev,
+			     STI_MBOX_CHAN_MAX, sizeof(*chans), GFP_KERNEL);
 	if (!chans)
 		return -ENOMEM;
 
@@ -461,7 +462,7 @@ static int sti_mbox_probe(struct platform_device *pdev)
 	mbox->chans		= chans;
 	mbox->num_chans		= STI_MBOX_CHAN_MAX;
 
-	ret = mbox_controller_register(mbox);
+	ret = devm_mbox_controller_register(&pdev->dev, mbox);
 	if (ret)
 		return ret;
 
@@ -479,7 +480,6 @@ static int sti_mbox_probe(struct platform_device *pdev)
 					IRQF_ONESHOT, mdev->name, mdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't claim IRQ %d\n", irq);
-		mbox_controller_unregister(mbox);
 		return -EINVAL;
 	}
 
@@ -488,18 +488,8 @@ static int sti_mbox_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int sti_mbox_remove(struct platform_device *pdev)
-{
-	struct sti_mbox_device *mdev = platform_get_drvdata(pdev);
-
-	mbox_controller_unregister(mdev->mbox);
-
-	return 0;
-}
-
 static struct platform_driver sti_mbox_driver = {
 	.probe = sti_mbox_probe,
-	.remove = sti_mbox_remove,
 	.driver = {
 		.name = "sti-mailbox",
 		.of_match_table = sti_mailbox_match,

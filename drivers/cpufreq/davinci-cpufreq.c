@@ -23,12 +23,9 @@
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/platform_data/davinci-cpufreq.h>
 #include <linux/platform_device.h>
 #include <linux/export.h>
-
-#include <mach/hardware.h>
-#include <mach/cpufreq.h>
-#include <mach/common.h>
 
 struct davinci_cpufreq {
 	struct device *dev;
@@ -55,7 +52,7 @@ static int davinci_target(struct cpufreq_policy *policy, unsigned int idx)
 			return ret;
 	}
 
-	ret = clk_set_rate(armclk, idx);
+	ret = clk_set_rate(armclk, new_freq * 1000);
 	if (ret)
 		return ret;
 

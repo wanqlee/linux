@@ -14,10 +14,10 @@
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "fsl_dcu_drm_drv.h"
 #include "fsl_dcu_drm_plane.h"
@@ -44,7 +44,7 @@ static int fsl_dcu_drm_plane_atomic_check(struct drm_plane *plane,
 	if (!state->fb || !state->crtc)
 		return 0;
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_RGB888:
 	case DRM_FORMAT_XRGB8888:
@@ -96,7 +96,7 @@ static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
 
 	gem = drm_fb_cma_get_gem_obj(fb, 0);
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_RGB565:
 		bpp = FSL_DCU_RGB565;
 		break;
@@ -160,11 +160,6 @@ static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
 			     DCU_LAYER_POST_SKIP(0) |
 			     DCU_LAYER_PRE_SKIP(0));
 	}
-	regmap_update_bits(fsl_dev->regmap, DCU_DCU_MODE,
-			   DCU_MODE_DCU_MODE_MASK,
-			   DCU_MODE_DCU_MODE(DCU_MODE_NORMAL));
-	regmap_write(fsl_dev->regmap,
-		     DCU_UPDATE_MODE, DCU_UPDATE_MODE_READREG);
 
 	return;
 }
@@ -229,7 +224,7 @@ struct drm_plane *fsl_dcu_drm_primary_create_plane(struct drm_device *dev)
 				       &fsl_dcu_drm_plane_funcs,
 				       fsl_dcu_drm_plane_formats,
 				       ARRAY_SIZE(fsl_dcu_drm_plane_formats),
-				       DRM_PLANE_TYPE_PRIMARY, NULL);
+				       NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret) {
 		kfree(primary);
 		primary = NULL;

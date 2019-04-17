@@ -43,8 +43,8 @@
  */
 
 /* Sensor resolution : 0.5 degree C */
-static ssize_t show_temp(struct device *dev,
-			 struct device_attribute *devattr, char *buf)
+static ssize_t temp1_input_show(struct device *dev,
+				struct device_attribute *devattr, char *buf)
 {
 	struct pci_dev *pdev = to_pci_dev(dev->parent);
 	long temp;
@@ -58,7 +58,7 @@ static ssize_t show_temp(struct device *dev,
 	return sprintf(buf, "%ld\n", temp);
 }
 
-static ssize_t show_thresh(struct device *dev,
+static ssize_t thresh_show(struct device *dev,
 			   struct device_attribute *devattr, char *buf)
 {
 	struct pci_dev *pdev = to_pci_dev(dev->parent);
@@ -72,7 +72,7 @@ static ssize_t show_thresh(struct device *dev,
 	return sprintf(buf, "%ld\n", temp);
 }
 
-static ssize_t show_alarm(struct device *dev,
+static ssize_t alarm_show(struct device *dev,
 			  struct device_attribute *devattr, char *buf)
 {
 	struct pci_dev *pdev = to_pci_dev(dev->parent);
@@ -83,12 +83,12 @@ static ssize_t show_alarm(struct device *dev,
 	return sprintf(buf, "%u\n", (unsigned int)ctsts & (1 << nr));
 }
 
-static DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL);
-static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, show_thresh, NULL, 0xE2);
-static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IRUGO, show_thresh, NULL, 0xEC);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_thresh, NULL, 0xEE);
-static SENSOR_DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, show_alarm, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL, 1);
+static DEVICE_ATTR_RO(temp1_input);
+static SENSOR_DEVICE_ATTR_RO(temp1_crit, thresh, 0xE2);
+static SENSOR_DEVICE_ATTR_RO(temp1_max_hyst, thresh, 0xEC);
+static SENSOR_DEVICE_ATTR_RO(temp1_max, thresh, 0xEE);
+static SENSOR_DEVICE_ATTR_RO(temp1_crit_alarm, alarm, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_max_alarm, alarm, 1);
 
 static struct attribute *i5500_temp_attrs[] = {
 	&dev_attr_temp1_input.attr,

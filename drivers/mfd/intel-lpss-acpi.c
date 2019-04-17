@@ -15,16 +15,11 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 
 #include "intel-lpss.h"
-
-static const struct intel_lpss_platform_info spt_info = {
-	.clk_rate = 120000000,
-};
 
 static struct property_entry spt_i2c_properties[] = {
 	PROPERTY_ENTRY_U32("i2c-sda-hold-time-ns", 230),

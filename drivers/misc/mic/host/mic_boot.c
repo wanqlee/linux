@@ -133,8 +133,8 @@ static struct vop_hw_ops vop_hw_ops = {
 	.get_dp = __mic_get_dp,
 	.get_remote_dp = __mic_get_remote_dp,
 	.send_intr = __mic_send_intr,
-	.ioremap = __mic_ioremap,
-	.iounmap = __mic_iounmap,
+	.remap = __mic_ioremap,
+	.unmap = __mic_iounmap,
 };
 
 static inline struct mic_device *scdev_to_mdev(struct scif_hw_dev *scdev)
@@ -149,7 +149,7 @@ static void *__mic_dma_alloc(struct device *dev, size_t size,
 	struct scif_hw_dev *scdev = dev_get_drvdata(dev);
 	struct mic_device *mdev = scdev_to_mdev(scdev);
 	dma_addr_t tmp;
-	void *va = kmalloc(size, gfp);
+	void *va = kmalloc(size, gfp | __GFP_ZERO);
 
 	if (va) {
 		tmp = mic_map_single(mdev, va, size);
@@ -245,7 +245,7 @@ static void __mic_dma_unmap_sg(struct device *dev,
 	dma_unmap_sg(&mdev->pdev->dev, sg, nents, dir);
 }
 
-static struct dma_map_ops __mic_dma_ops = {
+static const struct dma_map_ops __mic_dma_ops = {
 	.alloc = __mic_dma_alloc,
 	.free = __mic_dma_free,
 	.map_page = __mic_dma_map_page,
@@ -315,8 +315,8 @@ static struct scif_hw_ops scif_hw_ops = {
 	.ack_interrupt = ___mic_ack_interrupt,
 	.next_db = ___mic_next_db,
 	.send_intr = ___mic_send_intr,
-	.ioremap = ___mic_ioremap,
-	.iounmap = ___mic_iounmap,
+	.remap = ___mic_ioremap,
+	.unmap = ___mic_iounmap,
 };
 
 static inline struct mic_device *mbdev_to_mdev(struct mbus_device *mbdev)
@@ -344,7 +344,7 @@ mic_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
 	mic_unmap_single(mdev, dma_addr, size);
 }
 
-static struct dma_map_ops mic_dma_ops = {
+static const struct dma_map_ops mic_dma_ops = {
 	.map_page = mic_dma_map_page,
 	.unmap_page = mic_dma_unmap_page,
 };

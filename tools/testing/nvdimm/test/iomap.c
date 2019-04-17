@@ -26,14 +26,17 @@ static LIST_HEAD(iomap_head);
 
 static struct iomap_ops {
 	nfit_test_lookup_fn nfit_test_lookup;
+	nfit_test_evaluate_dsm_fn evaluate_dsm;
 	struct list_head list;
 } iomap_ops = {
 	.list = LIST_HEAD_INIT(iomap_ops.list),
 };
 
-void nfit_test_setup(nfit_test_lookup_fn lookup)
+void nfit_test_setup(nfit_test_lookup_fn lookup,
+		nfit_test_evaluate_dsm_fn evaluate)
 {
 	iomap_ops.nfit_test_lookup = lookup;
+	iomap_ops.evaluate_dsm = evaluate;
 	list_add_rcu(&iomap_ops.list, &iomap_head);
 }
 EXPORT_SYMBOL(nfit_test_setup);
@@ -101,17 +104,29 @@ void *__wrap_devm_memremap(struct device *dev, resource_size_t offset,
 }
 EXPORT_SYMBOL(__wrap_devm_memremap);
 
-void *__wrap_devm_memremap_pages(struct device *dev, struct resource *res,
-		struct percpu_ref *ref, struct vmem_altmap *altmap)
+static void nfit_test_kill(void *_pgmap)
 {
-	resource_size_t offset = res->start;
+	struct dev_pagemap *pgmap = _pgmap;
+
+	pgmap->kill(pgmap->ref);
+}
+
+void *__wrap_devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+{
+	resource_size_t offset = pgmap->res.start;
 	struct nfit_test_resource *nfit_res = get_nfit_res(offset);
 
-	if (nfit_res)
+	if (nfit_res) {
+		int rc;
+
+		rc = devm_add_action_or_reset(dev, nfit_test_kill, pgmap);
+		if (rc)
+			return ERR_PTR(rc);
 		return nfit_res->buf + offset - nfit_res->res.start;
-	return devm_memremap_pages(dev, res, ref, altmap);
+	}
+	return devm_memremap_pages(dev, pgmap);
 }
-EXPORT_SYMBOL(__wrap_devm_memremap_pages);
+EXPORT_SYMBOL_GPL(__wrap_devm_memremap_pages);
 
 pfn_t __wrap_phys_to_pfn_t(phys_addr_t addr, unsigned long flags)
 {
@@ -366,5 +381,23 @@ acpi_status __wrap_acpi_evaluate_object(acpi_handle handle, acpi_string path,
 	return AE_OK;
 }
 EXPORT_SYMBOL(__wrap_acpi_evaluate_object);
+
+union acpi_object * __wrap_acpi_evaluate_dsm(acpi_handle handle, const guid_t *guid,
+		u64 rev, u64 func, union acpi_object *argv4)
+{
+	union acpi_object *obj = ERR_PTR(-ENXIO);
+	struct iomap_ops *ops;
+
+	rcu_read_lock();
+	ops = list_first_or_null_rcu(&iomap_head, typeof(*ops), list);
+	if (ops)
+		obj = ops->evaluate_dsm(handle, guid, rev, func, argv4);
+	rcu_read_unlock();
+
+	if (IS_ERR(obj))
+		return acpi_evaluate_dsm(handle, guid, rev, func, argv4);
+	return obj;
+}
+EXPORT_SYMBOL(__wrap_acpi_evaluate_dsm);
 
 MODULE_LICENSE("GPL v2");

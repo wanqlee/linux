@@ -254,14 +254,6 @@ static void smsc9420_ethtool_set_msglevel(struct net_device *netdev, u32 data)
 	pd->msg_enable = data;
 }
 
-static int smsc9420_ethtool_nway_reset(struct net_device *netdev)
-{
-	if (!netdev->phydev)
-		return -ENODEV;
-
-	return phy_start_aneg(netdev->phydev);
-}
-
 static int smsc9420_ethtool_getregslen(struct net_device *dev)
 {
 	/* all smsc9420 registers plus all phy registers */
@@ -417,7 +409,7 @@ static const struct ethtool_ops smsc9420_ethtool_ops = {
 	.get_drvinfo = smsc9420_ethtool_get_drvinfo,
 	.get_msglevel = smsc9420_ethtool_get_msglevel,
 	.set_msglevel = smsc9420_ethtool_set_msglevel,
-	.nway_reset = smsc9420_ethtool_nway_reset,
+	.nway_reset = phy_ethtool_nway_reset,
 	.get_link = ethtool_op_get_link,
 	.get_eeprom_len = smsc9420_ethtool_get_eeprom_len,
 	.get_eeprom = smsc9420_ethtool_get_eeprom,
@@ -869,7 +861,7 @@ static int smsc9420_rx_poll(struct napi_struct *napi, int budget)
 	smsc9420_pci_flush_write(pd);
 
 	if (work_done < budget) {
-		napi_complete(&pd->napi);
+		napi_complete_done(&pd->napi, work_done);
 
 		/* re-enable RX DMA interrupts */
 		dma_intr_ena = smsc9420_reg_read(pd, DMAC_INTR_ENA);
@@ -1143,10 +1135,10 @@ static int smsc9420_mii_probe(struct net_device *dev)
 		return PTR_ERR(phydev);
 	}
 
+	phy_set_max_speed(phydev, SPEED_100);
+
 	/* mask with MAC supported features */
-	phydev->supported &= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
-			      SUPPORTED_Asym_Pause);
-	phydev->advertising = phydev->supported;
+	phy_support_asym_pause(phydev);
 
 	phy_attached_info(phydev);
 

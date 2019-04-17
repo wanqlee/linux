@@ -11,10 +11,12 @@
 
 #include <linux/linkage.h>
 
-.data
+.section	.rodata.cst16.ANMASK, "aM", @progbits, 16
 .align 16
-
 ANMASK:	.octa 0x0000000003ffffff0000000003ffffff
+
+.section	.rodata.cst16.ORMASK, "aM", @progbits, 16
+.align 16
 ORMASK:	.octa 0x00000000010000000000000001000000
 
 .text
@@ -269,6 +271,10 @@ ENTRY(poly1305_block_sse2)
 	add		$0x10,m
 	dec		%rcx
 	jnz		.Ldoblock
+
+	# Zeroing of key material
+	mov		%rcx,0x00(%rsp)
+	mov		%rcx,0x08(%rsp)
 
 	add		$0x10,%rsp
 	pop		%r12

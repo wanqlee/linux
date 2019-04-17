@@ -7,8 +7,6 @@
  *      2 of the License, or (at your option) any later version.
  *
  * /dev/nvram driver for PPC64
- *
- * This perhaps should live in drivers/char
  */
 
 
@@ -18,7 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/nvram.h>
 #include <asm/rtas.h>
 #include <asm/prom.h>

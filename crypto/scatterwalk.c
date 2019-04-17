@@ -68,10 +68,6 @@ void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
 
 	sg = scatterwalk_ffwd(tmp, sg, start);
 
-	if (sg_page(sg) == virt_to_page(buf) &&
-	    sg->offset == offset_in_page(buf))
-		return;
-
 	scatterwalk_start(&walk, sg);
 	scatterwalk_copychunks(buf, &walk, nbytes, out);
 	scatterwalk_done(&walk, out, 0);
@@ -95,7 +91,7 @@ struct scatterlist *scatterwalk_ffwd(struct scatterlist dst[2],
 
 	sg_init_table(dst, 2);
 	sg_set_page(dst, sg_page(src), src->length - len, src->offset + len);
-	scatterwalk_crypto_chain(dst, sg_next(src), 0, 2);
+	scatterwalk_crypto_chain(dst, sg_next(src), 2);
 
 	return dst;
 }

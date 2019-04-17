@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/crypto.h>
+#include <linux/compiler.h>
 #include <crypto/algapi.h>
 #include <linux/cryptouser.h>
 #include <net/netlink.h>
@@ -29,15 +30,12 @@ static int crypto_akcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_akcipher rakcipher;
 
-	strncpy(rakcipher.type, "akcipher", sizeof(rakcipher.type));
+	memset(&rakcipher, 0, sizeof(rakcipher));
 
-	if (nla_put(skb, CRYPTOCFGA_REPORT_AKCIPHER,
-		    sizeof(struct crypto_report_akcipher), &rakcipher))
-		goto nla_put_failure;
-	return 0;
+	strscpy(rakcipher.type, "akcipher", sizeof(rakcipher.type));
 
-nla_put_failure:
-	return -EMSGSIZE;
+	return nla_put(skb, CRYPTOCFGA_REPORT_AKCIPHER,
+		       sizeof(rakcipher), &rakcipher);
 }
 #else
 static int crypto_akcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
@@ -47,7 +45,7 @@ static int crypto_akcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 #endif
 
 static void crypto_akcipher_show(struct seq_file *m, struct crypto_alg *alg)
-	__attribute__ ((unused));
+	__maybe_unused;
 
 static void crypto_akcipher_show(struct seq_file *m, struct crypto_alg *alg)
 {

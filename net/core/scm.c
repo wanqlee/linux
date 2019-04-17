@@ -14,6 +14,7 @@
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/sched/user.h>
 #include <linux/mm.h>
 #include <linux/kernel.h>
 #include <linux/stat.h>
@@ -28,8 +29,9 @@
 #include <linux/pid.h>
 #include <linux/nsproxy.h>
 #include <linux/slab.h>
+#include <linux/errqueue.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <net/protocol.h>
 #include <linux/skbuff.h>
@@ -71,7 +73,7 @@ static int scm_fp_copy(struct cmsghdr *cmsg, struct scm_fp_list **fplp)
 	struct file **fpp;
 	int i, num;
 
-	num = (cmsg->cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr)))/sizeof(int);
+	num = (cmsg->cmsg_len - sizeof(struct cmsghdr))/sizeof(int);
 
 	if (num <= 0)
 		return 0;
@@ -250,6 +252,32 @@ out:
 	return err;
 }
 EXPORT_SYMBOL(put_cmsg);
+
+void put_cmsg_scm_timestamping64(struct msghdr *msg, struct scm_timestamping_internal *tss_internal)
+{
+	struct scm_timestamping64 tss;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tss.ts); i++) {
+		tss.ts[i].tv_sec = tss_internal->ts[i].tv_sec;
+		tss.ts[i].tv_nsec = tss_internal->ts[i].tv_nsec;
+	}
+
+	put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMPING_NEW, sizeof(tss), &tss);
+}
+EXPORT_SYMBOL(put_cmsg_scm_timestamping64);
+
+void put_cmsg_scm_timestamping(struct msghdr *msg, struct scm_timestamping_internal *tss_internal)
+{
+	struct scm_timestamping tss;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tss.ts); i++)
+		tss.ts[i] = timespec64_to_timespec(tss_internal->ts[i]);
+
+	put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMPING_OLD, sizeof(tss), &tss);
+}
+EXPORT_SYMBOL(put_cmsg_scm_timestamping);
 
 void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm)
 {

@@ -242,15 +242,19 @@ static int bcm590xx_get_enable_register(int id)
 		case BCM590XX_REG_SDSR2:
 			reg = BCM590XX_SDSR2PMCTRL1;
 			break;
+		case BCM590XX_REG_VSR:
+			reg = BCM590XX_VSRPMCTRL1;
+			break;
 		case BCM590XX_REG_VBUS:
 			reg = BCM590XX_OTG_CTRL;
+			break;
 		}
 
 
 	return reg;
 }
 
-static struct regulator_ops bcm590xx_ops_ldo = {
+static const struct regulator_ops bcm590xx_ops_ldo = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -260,7 +264,7 @@ static struct regulator_ops bcm590xx_ops_ldo = {
 	.map_voltage		= regulator_map_voltage_iterate,
 };
 
-static struct regulator_ops bcm590xx_ops_dcdc = {
+static const struct regulator_ops bcm590xx_ops_dcdc = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -270,7 +274,7 @@ static struct regulator_ops bcm590xx_ops_dcdc = {
 	.map_voltage		= regulator_map_voltage_linear_range,
 };
 
-static struct regulator_ops bcm590xx_ops_vbus = {
+static const struct regulator_ops bcm590xx_ops_vbus = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -383,8 +387,10 @@ static int bcm590xx_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pmu);
 
-	pmu->desc = devm_kzalloc(&pdev->dev, BCM590XX_NUM_REGS *
-			sizeof(struct regulator_desc), GFP_KERNEL);
+	pmu->desc = devm_kcalloc(&pdev->dev,
+				 BCM590XX_NUM_REGS,
+				 sizeof(struct regulator_desc),
+				 GFP_KERNEL);
 	if (!pmu->desc)
 		return -ENOMEM;
 

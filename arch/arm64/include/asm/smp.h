@@ -16,24 +16,42 @@
 #ifndef __ASM_SMP_H
 #define __ASM_SMP_H
 
-/* Values for secondary_data.status */
+#include <linux/const.h>
 
-#define CPU_MMU_OFF		(-1)
-#define CPU_BOOT_SUCCESS	(0)
+/* Values for secondary_data.status */
+#define CPU_STUCK_REASON_SHIFT		(8)
+#define CPU_BOOT_STATUS_MASK		((UL(1) << CPU_STUCK_REASON_SHIFT) - 1)
+
+#define CPU_MMU_OFF			(-1)
+#define CPU_BOOT_SUCCESS		(0)
 /* The cpu invoked ops->cpu_die, synchronise it with cpu_kill */
-#define CPU_KILL_ME		(1)
+#define CPU_KILL_ME			(1)
 /* The cpu couldn't die gracefully and is looping in the kernel */
-#define CPU_STUCK_IN_KERNEL	(2)
+#define CPU_STUCK_IN_KERNEL		(2)
 /* Fatal system error detected by secondary CPU, crash the system */
-#define CPU_PANIC_KERNEL	(3)
+#define CPU_PANIC_KERNEL		(3)
+
+#define CPU_STUCK_REASON_52_BIT_VA	(UL(1) << CPU_STUCK_REASON_SHIFT)
+#define CPU_STUCK_REASON_NO_GRAN	(UL(2) << CPU_STUCK_REASON_SHIFT)
 
 #ifndef __ASSEMBLY__
+
+#include <asm/percpu.h>
 
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/thread_info.h>
 
-#define raw_smp_processor_id() (current_thread_info()->cpu)
+DECLARE_PER_CPU_READ_MOSTLY(int, cpu_number);
+
+/*
+ * We don't use this_cpu_read(cpu_number) as that has implicit writes to
+ * preempt_count, and associated (compiler) barriers, that we'd like to avoid
+ * the expense of. If we're preemptible, the value can be stale at use anyway.
+ * And we can't use this_cpu_ptr() either, as that winds up recursing back
+ * here under CONFIG_DEBUG_PREEMPT=y.
+ */
+#define raw_smp_processor_id() (*raw_cpu_ptr(&cpu_number))
 
 struct seq_file;
 
@@ -73,6 +91,7 @@ asmlinkage void secondary_start_kernel(void);
  */
 struct secondary_data {
 	void *stack;
+	struct task_struct *task;
 	long status;
 };
 
@@ -135,6 +154,9 @@ static inline void cpu_panic_kernel(void)
  * This function is used to inhibit features like kexec and hibernate.
  */
 bool cpus_are_stuck_in_kernel(void);
+
+extern void crash_smp_send_stop(void);
+extern bool smp_crash_stop_failed(void);
 
 #endif /* ifndef __ASSEMBLY__ */
 

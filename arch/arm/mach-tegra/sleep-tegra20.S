@@ -20,6 +20,8 @@
 
 #include <linux/linkage.h>
 
+#include <soc/tegra/flowctrl.h>
+
 #include <asm/assembler.h>
 #include <asm/proc-fns.h>
 #include <asm/cp15.h>
@@ -27,11 +29,9 @@
 
 #include "irammap.h"
 #include "sleep.h"
-#include "flowctrl.h"
 
 #define EMC_CFG				0xc
 #define EMC_ADR_CFG			0x10
-#define EMC_REFRESH			0x70
 #define EMC_NOP				0xdc
 #define EMC_SELF_REF			0xe0
 #define EMC_REQ_CTRL			0x2b0
@@ -396,7 +396,6 @@ padload_done:
 	mov	r1, #1
 	str	r1, [r0, #EMC_NOP]
 	str	r1, [r0, #EMC_NOP]
-	str	r1, [r0, #EMC_REFRESH]
 
 	emc_device_mask r1, r0
 

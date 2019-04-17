@@ -10,12 +10,15 @@
  */
 
 #include <linux/export.h>
+#include <linux/kernel.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
 
 #include "sdio_ops.h"
+#include "core.h"
+#include "card.h"
 
 /**
  *	sdio_claim_host - exclusively claim a bus for a certain SDIO function
@@ -201,6 +204,21 @@ static inline unsigned int sdio_max_byte_size(struct sdio_func *func)
 	return min(mval, 512u); /* maximum size for byte mode */
 }
 
+/*
+ * This is legacy code, which needs to be re-worked some day. Basically we need
+ * to take into account the properties of the host, as to enable the SDIO func
+ * driver layer to allocate optimal buffers.
+ */
+static inline unsigned int _sdio_align_size(unsigned int sz)
+{
+	/*
+	 * FIXME: We don't have a system for the controller to tell
+	 * the core about its problems yet, so for now we just 32-bit
+	 * align the size.
+	 */
+	return ALIGN(sz, 4);
+}
+
 /**
  *	sdio_align_size - pads a transfer size to a more optimal value
  *	@func: SDIO function
@@ -228,7 +246,7 @@ unsigned int sdio_align_size(struct sdio_func *func, unsigned int sz)
 	 * wants to increase the size up to a point where it
 	 * might need more than one block.
 	 */
-	sz = mmc_align_data_size(func->card, sz);
+	sz = _sdio_align_size(sz);
 
 	/*
 	 * If we can still do this with just a byte transfer, then
@@ -250,7 +268,7 @@ unsigned int sdio_align_size(struct sdio_func *func, unsigned int sz)
 		 */
 		blk_sz = ((sz + func->cur_blksize - 1) /
 			func->cur_blksize) * func->cur_blksize;
-		blk_sz = mmc_align_data_size(func->card, blk_sz);
+		blk_sz = _sdio_align_size(blk_sz);
 
 		/*
 		 * This value is only good if it is still just
@@ -263,8 +281,7 @@ unsigned int sdio_align_size(struct sdio_func *func, unsigned int sz)
 		 * We failed to do one request, but at least try to
 		 * pad the remainder properly.
 		 */
-		byte_sz = mmc_align_data_size(func->card,
-				sz % func->cur_blksize);
+		byte_sz = _sdio_align_size(sz % func->cur_blksize);
 		if (byte_sz <= sdio_max_byte_size(func)) {
 			blk_sz = sz / func->cur_blksize;
 			return blk_sz * func->cur_blksize + byte_sz;
@@ -274,16 +291,14 @@ unsigned int sdio_align_size(struct sdio_func *func, unsigned int sz)
 		 * We need multiple requests, so first check that the
 		 * controller can handle the chunk size;
 		 */
-		chunk_sz = mmc_align_data_size(func->card,
-				sdio_max_byte_size(func));
+		chunk_sz = _sdio_align_size(sdio_max_byte_size(func));
 		if (chunk_sz == sdio_max_byte_size(func)) {
 			/*
 			 * Fix up the size of the remainder (if any)
 			 */
 			byte_sz = orig_sz % chunk_sz;
 			if (byte_sz) {
-				byte_sz = mmc_align_data_size(func->card,
-						byte_sz);
+				byte_sz = _sdio_align_size(byte_sz);
 			}
 
 			return (orig_sz / chunk_sz) * chunk_sz + byte_sz;
@@ -371,19 +386,16 @@ u8 sdio_readb(struct sdio_func *func, unsigned int addr, int *err_ret)
 	u8 val;
 
 	if (!func) {
-		*err_ret = -EINVAL;
+		if (err_ret)
+			*err_ret = -EINVAL;
 		return 0xFF;
 	}
-
-	if (err_ret)
-		*err_ret = 0;
 
 	ret = mmc_io_rw_direct(func->card, 0, func->num, addr, 0, &val);
-	if (ret) {
-		if (err_ret)
-			*err_ret = ret;
+	if (err_ret)
+		*err_ret = ret;
+	if (ret)
 		return 0xFF;
-	}
 
 	return val;
 }
@@ -405,7 +417,8 @@ void sdio_writeb(struct sdio_func *func, u8 b, unsigned int addr, int *err_ret)
 	int ret;
 
 	if (!func) {
-		*err_ret = -EINVAL;
+		if (err_ret)
+			*err_ret = -EINVAL;
 		return;
 	}
 
@@ -439,7 +452,7 @@ u8 sdio_writeb_readb(struct sdio_func *func, u8 write_byte,
 	if (err_ret)
 		*err_ret = ret;
 	if (ret)
-		val = 0xff;
+		return 0xff;
 
 	return val;
 }
@@ -527,15 +540,11 @@ u16 sdio_readw(struct sdio_func *func, unsigned int addr, int *err_ret)
 {
 	int ret;
 
-	if (err_ret)
-		*err_ret = 0;
-
 	ret = sdio_memcpy_fromio(func, func->tmpbuf, addr, 2);
-	if (ret) {
-		if (err_ret)
-			*err_ret = ret;
+	if (err_ret)
+		*err_ret = ret;
+	if (ret)
 		return 0xFFFF;
-	}
 
 	return le16_to_cpup((__le16 *)func->tmpbuf);
 }
@@ -579,15 +588,11 @@ u32 sdio_readl(struct sdio_func *func, unsigned int addr, int *err_ret)
 {
 	int ret;
 
-	if (err_ret)
-		*err_ret = 0;
-
 	ret = sdio_memcpy_fromio(func, func->tmpbuf, addr, 4);
-	if (ret) {
-		if (err_ret)
-			*err_ret = ret;
+	if (err_ret)
+		*err_ret = ret;
+	if (ret)
 		return 0xFFFFFFFF;
-	}
 
 	return le32_to_cpup((__le32 *)func->tmpbuf);
 }
@@ -633,19 +638,16 @@ unsigned char sdio_f0_readb(struct sdio_func *func, unsigned int addr,
 	unsigned char val;
 
 	if (!func) {
-		*err_ret = -EINVAL;
+		if (err_ret)
+			*err_ret = -EINVAL;
 		return 0xFF;
 	}
-
-	if (err_ret)
-		*err_ret = 0;
 
 	ret = mmc_io_rw_direct(func->card, 0, 0, addr, 0, &val);
-	if (ret) {
-		if (err_ret)
-			*err_ret = ret;
+	if (err_ret)
+		*err_ret = ret;
+	if (ret)
 		return 0xFF;
-	}
 
 	return val;
 }
@@ -671,7 +673,8 @@ void sdio_f0_writeb(struct sdio_func *func, unsigned char b, unsigned int addr,
 	int ret;
 
 	if (!func) {
-		*err_ret = -EINVAL;
+		if (err_ret)
+			*err_ret = -EINVAL;
 		return;
 	}
 
